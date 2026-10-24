@@ -25,15 +25,21 @@ a{color:inherit;text-decoration:none}
 .m2{width:380px;height:380px;background:#e9b6ff;bottom:-60px;right:-60px}
 .m3{width:320px;height:320px;background:#ffd2a8;bottom:-120px;left:15%}
 .m4{width:300px;height:300px;background:#e6f7d6;top:30%;right:20%;opacity:.7}
+/* rastro do mouse: fica atrás de todo o conteúdo */
+#rastro{position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none}
 
-/* menu */
-nav{position:sticky;top:0;z-index:10;display:flex;justify-content:center;gap:clamp(20px,5vw,48px);padding:20px 16px;background:rgba(244,245,250,.7);backdrop-filter:blur(12px)}
+/* menu: faixa que se dissolve no fundo */
+nav{position:sticky;top:0;z-index:10;display:flex;justify-content:center;gap:clamp(20px,5vw,48px);padding:20px 16px}
+nav::before{content:"";position:absolute;z-index:-1;pointer-events:none;left:0;right:0;top:0;bottom:-26px;
+  background:linear-gradient(to bottom,rgba(244,245,250,.9),rgba(244,245,250,0));
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  -webkit-mask-image:linear-gradient(to bottom,#000 50%,transparent 100%);mask-image:linear-gradient(to bottom,#000 50%,transparent 100%)}
 nav a{font-weight:700;font-size:.95rem;position:relative;padding-bottom:8px}
 nav a::after{content:"";position:absolute;left:50%;bottom:0;width:0;height:4px;border-radius:4px;background:var(--roxo);transform:translateX(-50%);transition:width .25s}
 nav a.ativo{color:var(--roxo)}
 nav a.ativo::after{width:20px}
 
-section{max-width:1080px;margin:0 auto;padding:72px 24px}
+section{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:72px 24px}
 
 /* início */
 #inicio{min-height:calc(100vh - 70px);display:grid;grid-template-columns:1.1fr .9fr;align-items:center;gap:32px}
@@ -50,11 +56,10 @@ section{max-width:1080px;margin:0 auto;padding:72px 24px}
 .palco::before{content:"";position:absolute;inset:8% 0 0;border-radius:50%;background:radial-gradient(circle,#e29bff,#c9a6ff 55%,transparent 72%);filter:blur(30px);opacity:.8}
 .foto{position:relative;z-index:1;width:100%;height:100%;object-fit:contain;object-position:bottom;
   -webkit-mask-image:linear-gradient(to bottom,#000 78%,transparent 100%);mask-image:linear-gradient(to bottom,#000 78%,transparent 100%)}
-/* brilho desfocado por cima da base da imagem (cobre o corte dos braços) */
-.palco::after{content:"";position:absolute;z-index:3;pointer-events:none;left:-14%;right:-14%;bottom:-8%;height:40%;
-  background:radial-gradient(ellipse at 50% 100%,rgba(226,155,255,.95),rgba(201,166,255,.7) 45%,rgba(201,166,255,0) 75%);
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  -webkit-mask-image:radial-gradient(ellipse at 50% 100%,#000 40%,transparent 75%);mask-image:radial-gradient(ellipse at 50% 100%,#000 40%,transparent 75%)}
+/* brilho desfocado na base da imagem: desce para a próxima seção e some aos poucos, sem linha de corte */
+.palco::after{content:"";position:absolute;z-index:3;pointer-events:none;left:-30%;right:-30%;bottom:-70%;height:110%;
+  background:radial-gradient(closest-side at 50% 45%,rgba(226,155,255,.9) 0%,rgba(214,170,255,.6) 45%,rgba(201,166,255,0) 100%);
+  filter:blur(14px)}
 .reserva{position:absolute;inset:6% 12% 0;display:none;place-items:center;border-radius:50% 50% 24px 24px;background:linear-gradient(160deg,#e9b6ff,#c4d8ff);font-family:'Chakra Petch',sans-serif;font-size:4rem;color:#fff}
 .palco.sem-foto .foto{display:none}
 .palco.sem-foto .reserva{display:grid}
@@ -127,6 +132,8 @@ footer{text-align:center;padding:32px;color:var(--suave);font-size:.85rem}
 #pagina{min-height:100vh;padding:28px 24px;background:#fff}
 #pagina[hidden]{display:none}
 body.aberto nav,body.aberto main,body.aberto footer{display:none}
+#pagina-conteudo{margin-top:20px}
+.relatorio{display:block;width:100%;height:78vh;margin-top:20px;border:0;border-radius:16px;box-shadow:0 10px 30px rgba(80,60,120,.15)}
 .voltar{display:inline-flex;gap:8px;padding:12px 22px;border:0;border-radius:14px;background:#111;color:#fff;font:700 .9rem 'Space Grotesk',sans-serif;cursor:pointer}
 
 @media(max-width:600px){
@@ -144,6 +151,7 @@ body.aberto nav,body.aberto main,body.aberto footer{display:none}
 </head>
 <body>
 <div class="mancha m1"></div><div class="mancha m2"></div><div class="mancha m3"></div><div class="mancha m4"></div>
+<canvas id="rastro" aria-hidden="true"></canvas>
 
 <nav>
   <a href="#inicio" class="ativo">Início</a>
@@ -234,19 +242,57 @@ body.aberto nav,body.aberto main,body.aberto footer{display:none}
 <div id="pagina" hidden>
   <button class="voltar" id="voltar">← Voltar para projetos</button>
   <h1 id="pagina-titulo" style="margin-top:32px"></h1>
+  <div id="pagina-conteudo"></div>
 </div>
 
 <script>
 // ===== Carrossel de relatórios =====
-// Para trocar os projetos, edite esta lista (n = número, i = ícone, t = título, c = cores)
+/* =====================================================================
+   ONDE COLOCAR OS LINKS DOS SEUS RELATÓRIOS
+   =====================================================================
+   Cada linha da lista abaixo é um cartão do carrossel. Em cada uma existe
+   o campo   link:''   . O endereço do relatório vai ENTRE AS ASPAS.
+
+   ANTES (sem link, a página do projeto abre em branco):
+      {n:'01',i:'💰',t:'Relatório Financeiro',link:'',c:[...]},
+
+   DEPOIS (com link, o relatório aparece dentro do site):
+      {n:'01',i:'💰',t:'Relatório Financeiro',link:'https://app.powerbi.com/view?r=SEU_CODIGO',c:[...]},
+
+   REGRAS
+   - O link precisa começar com  https://
+   - Mantenha as aspas simples ' ' e a vírgula depois do link
+   - Não apague o resto da linha (n, i, t, c)
+   - Para mudar o nome do cartão, edite o texto de  t:'...'
+   - Para mudar o ícone (emoji), edite o texto de  i:'...'
+   - Para adicionar um projeto, copie uma linha inteira e cole abaixo
+     (o carrossel se ajusta sozinho); para remover, apague a linha
+
+   COMO PEGAR O LINK DE CADA FERRAMENTA
+   - Power BI: abra o relatório no Power BI Service, vá em
+     Arquivo > Incorporar relatório > Publicar na Web (público) e copie o
+     link que começa com https://app.powerbi.com/view?r=...
+     ATENÇÃO: esse link é público, então use só dados fictícios ou públicos.
+     Essa opção depende da sua conta e licença.
+   - Looker Studio: abra o relatório e vá em Arquivo > Incorporar relatório,
+     ative a incorporação e copie a "URL de incorporação"
+     (ela tem /embed/ no meio).
+
+   COMO FICA NO SITE
+   - Dois cliques no cartão abrem a página do projeto com o relatório.
+   - Há um botão "Abrir em nova aba", útil se o relatório não aparecer
+     dentro da moldura (alguns links não permitem ser exibidos assim).
+   - O botão "Voltar para projetos" (ou o voltar do navegador) retorna ao
+     carrossel, com o cartão que você abriu centralizado e destacado.
+   ===================================================================== */
 const projetos=[
-  {n:'01',i:'💰',t:'Relatório Financeiro',c:['#9a7be0','#6b86dc']},
-  {n:'02',i:'📈',t:'Relatório de Vendas',c:['#5f8fb8','#4d6a8f']},
-  {n:'03',i:'📊',t:'Análise de Indicadores (KPIs)',c:['#5b6fd0','#3a4a9a']},
-  {n:'04',i:'📦',t:'Relatório de Estoque',c:['#2a3f9e','#141f5c']},
-  {n:'05',i:'🗂️',t:'Dashboard Operacional',c:['#4a72e8','#2f4cb8']},
-  {n:'06',i:'🧾',t:'Relatório de Desempenho',c:['#7a82dc','#5a62b8']},
-  {n:'07',i:'🔮',t:'Análise Preditiva',c:['#a28be0','#7a78c8']}
+  {n:'01',i:'💰',t:'Relatório Financeiro',link:'',c:['#9a7be0','#6b86dc']},  // <- cole o link do relatório 01 dentro das aspas de link:''
+  {n:'02',i:'📈',t:'Relatório de Vendas',link:'',c:['#5f8fb8','#4d6a8f']},  // <- cole o link do relatório 02 dentro das aspas de link:''
+  {n:'03',i:'📊',t:'Análise de Indicadores (KPIs)',link:'',c:['#5b6fd0','#3a4a9a']},  // <- cole o link do relatório 03 dentro das aspas de link:''
+  {n:'04',i:'📦',t:'Relatório de Estoque',link:'',c:['#2a3f9e','#141f5c']},  // <- cole o link do relatório 04 dentro das aspas de link:''
+  {n:'05',i:'🗂️',t:'Dashboard Operacional',link:'',c:['#4a72e8','#2f4cb8']},  // <- cole o link do relatório 05 dentro das aspas de link:''
+  {n:'06',i:'🧾',t:'Relatório de Desempenho',link:'',c:['#7a82dc','#5a62b8']},  // <- cole o link do relatório 06 dentro das aspas de link:''
+  {n:'07',i:'🔮',t:'Análise Preditiva',link:'',c:['#a28be0','#7a78c8']}  // <- cole o link do relatório 07 dentro das aspas de link:''
 ];
 const trilho=document.getElementById('trilho'), pontosEl=document.getElementById('pontos');
 const n=projetos.length, reduzir=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -316,7 +362,14 @@ window.addEventListener('resize',render);
 const pagina=document.getElementById('pagina');
 function abrir(i){
   posicao=window.scrollY;
-  document.getElementById('pagina-titulo').textContent='';  // aqui entrará o conteúdo de: '+projetos[i].t
+  const p=projetos[i], cont=document.getElementById('pagina-conteudo');
+  cont.innerHTML=''; document.getElementById('pagina-titulo').textContent='';
+  if(/^https:\/\//.test(p.link)){                       // só mostra se houver um link https em link:''
+    document.getElementById('pagina-titulo').textContent=p.t;
+    const a=document.createElement('a'); a.href=p.link; a.target='_blank'; a.rel='noopener'; a.className='btn btn-p'; a.textContent='Abrir em nova aba';
+    const f=document.createElement('iframe'); f.src=p.link; f.title=p.t; f.className='relatorio'; f.allowFullscreen=true;
+    cont.append(a,f);
+  }
   document.body.classList.add('aberto'); pagina.hidden=false;
   window.scrollTo(0,0); parar();
   history.pushState({projeto:i},'');
@@ -324,7 +377,7 @@ function abrir(i){
 function fechar(){
   if(pagina.hidden)return;
   pagina.hidden=true; document.body.classList.remove('aberto');
-  selecionado=false; render(); window.scrollTo(0,posicao); iniciar();
+  selecionado=true; render(); window.scrollTo(0,posicao); iniciar();   // volta com o cartão aberto centralizado e destacado
 }
 document.getElementById('voltar').addEventListener('click',()=>history.back());
 window.addEventListener('popstate',fechar);
@@ -351,6 +404,60 @@ function girar(agora){
   if(!reduzir)requestAnimationFrame(girar);
 }
 requestAnimationFrame(girar);
+
+// ===== Rastro de desfoque que segue o mouse (2 cores) =====
+(function(){
+  if(reduzir||matchMedia('(hover: none)').matches)return;   // não roda no celular
+  const cv=document.getElementById('rastro'), cx=cv.getContext('2d');
+  const COR_INICIO=[200,92,240];   // cor perto do mouse (roxo)  -> formato [R,G,B]
+  const COR_FIM=[255,150,110];     // cor do rastro mais antigo (laranja/pêssego)
+  const VIDA=1100;                 // tempo até o rastro sumir, em milissegundos
+  const RAIO=140;                  // tamanho do círculo, em pixels
+  const FORCA=.25;                 // intensidade da cor no centro (0 a 1)
+  let pts=[], ult=null, tUlt=0, rodando=false;
+  function ajustar(){
+    const dpr=Math.min(devicePixelRatio||1,2);
+    cv.width=innerWidth*dpr; cv.height=innerHeight*dpr; cx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  ajustar(); addEventListener('resize',ajustar);
+  const mix=(a,b,t)=>Math.round(a+(b-a)*t);
+  function bolha(x,y,r,forca,t){   // centro forte, some devagar até a borda
+    const c=`${mix(COR_INICIO[0],COR_FIM[0],t)},${mix(COR_INICIO[1],COR_FIM[1],t)},${mix(COR_INICIO[2],COR_FIM[2],t)}`;
+    const g=cx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,`rgba(${c},${forca})`);
+    g.addColorStop(.35,`rgba(${c},${forca*.6})`);
+    g.addColorStop(.7,`rgba(${c},${forca*.2})`);
+    g.addColorStop(1,`rgba(${c},0)`);
+    cx.fillStyle=g; cx.beginPath(); cx.arc(x,y,r,0,7); cx.fill();
+  }
+  function add(x,y){pts.push({x,y,t:performance.now()});}
+  let ref=null;   // último ponto do rastro (os círculos são criados a cada 22 px de caminho)
+  addEventListener('pointermove',e=>{
+    if(e.pointerType!=='mouse')return;
+    const agora=performance.now(), x=e.clientX, y=e.clientY;
+    if(ref&&agora-tUlt<200){
+      const dx=x-ref.x, dy=y-ref.y, d=Math.hypot(dx,dy), passos=Math.floor(d/22);
+      for(let i=1;i<=passos;i++)add(ref.x+dx/d*22*i,ref.y+dy/d*22*i);
+      if(passos>=1)ref={x:ref.x+dx/d*22*passos,y:ref.y+dy/d*22*passos};
+    }else{add(x,y);ref={x,y};}
+    ult={x,y}; tUlt=agora;
+    if(!rodando){rodando=true;requestAnimationFrame(desenhar);}
+  });
+  document.addEventListener('pointerleave',()=>{ult=null;ref=null;});
+  function desenhar(agora){
+    cx.clearRect(0,0,innerWidth,innerHeight);
+    pts=pts.filter(p=>agora-p.t<VIDA);
+    for(const p of pts){                                      // rastro: começa na cor 1 e vai virando a cor 2
+      const idade=(agora-p.t)/VIDA, v=Math.pow(1-idade,1.5);
+      bolha(p.x,p.y,RAIO*(.6+.4*v),FORCA*.28*v,idade);
+    }
+    if(ult&&agora-tUlt<VIDA){                                 // ponto forte onde o mouse está
+      const idade=(agora-tUlt)/VIDA, v=Math.pow(1-idade,1.5);
+      bolha(ult.x,ult.y,RAIO,FORCA*v,idade*.4);
+    }
+    if(pts.length||(ult&&agora-tUlt<VIDA))requestAnimationFrame(desenhar); else rodando=false;
+  }
+})();
 
 // destaca no menu a seção que está na tela
 const links=[...document.querySelectorAll('nav a')];
